@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // exceljs s'appuie sur les flux Node : chargé tel quel plutôt que bundlé
+  serverExternalPackages: ["exceljs"],
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

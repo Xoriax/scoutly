@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { SearchApp } from "@/components/SearchApp";
+import { exportMaxRows } from "@/lib/export/collect";
 
 export default function Home() {
   return (
@@ -14,7 +15,7 @@ export default function Home() {
       </header>
       {/* useSearchParams impose une frontière Suspense */}
       <Suspense fallback={null}>
-        <SearchApp />
+        <SearchApp exportMaxRows={exportMaxRows()} />
       </Suspense>
     </main>
   );

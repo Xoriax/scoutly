@@ -6,6 +6,7 @@ import { FILTER_LABELS, hasAnyFilter, type SearchFilters } from "@/domain/filter
 import type { SearchResult } from "@/domain/provider";
 import { formatInteger } from "@/lib/format";
 import { parseSearchParams, toSearchParams } from "@/lib/search-params";
+import { ExportButton } from "./ExportButton";
 import { Pagination } from "./Pagination";
 import { ResultsTable } from "./ResultsTable";
 import { SearchForm } from "./SearchForm";
@@ -16,7 +17,7 @@ type Outcome = { query: string } & ({ data: SearchResult } | { error: string });
  * Page de recherche : l'état (filtres + page) vit dans l'URL,
  * les données viennent de la route serveur /api/search.
  */
-export function SearchApp() {
+export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -80,6 +81,8 @@ export function SearchApp() {
       {filters && current && "data" in current && (
         <Results
           result={current.data}
+          exportQuery={toSearchParams(filters).toString()}
+          exportMaxRows={exportMaxRows}
           hrefFor={(p) => hrefFor(filters, p)}
           onNavigate={(p) => router.push(hrefFor(filters, p))}
         />
@@ -90,10 +93,14 @@ export function SearchApp() {
 
 function Results({
   result,
+  exportQuery,
+  exportMaxRows,
   hrefFor,
   onNavigate,
 }: {
   result: SearchResult;
+  exportQuery: string;
+  exportMaxRows: number;
   hrefFor: (page: number) => string;
   onNavigate: (page: number) => void;
 }) {
@@ -127,7 +134,7 @@ function Results({
           </Alert>
         ))}
 
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-700">
           {total === 0 ? (
             "Aucune entreprise trouvée."
@@ -146,7 +153,7 @@ function Results({
             </>
           )}
         </p>
-        {/* Emplacement du bouton « Exporter » (étape 4) */}
+        {total > 0 && <ExportButton query={exportQuery} maxRows={exportMaxRows} />}
       </div>
 
       {companies.length > 0 ? (
