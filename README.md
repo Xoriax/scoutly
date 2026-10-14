@@ -148,37 +148,6 @@ Comportements constatés lors du développement, gérés dans
 - Certaines entreprises individuelles ont une adresse non diffusible
   (`[NON-DIFFUSIBLE]`), traitée comme vide.
 
-## Déploiement (VPS)
-
-Exemple pour un VPS Ubuntu / Debian avec Nginx, PM2 et un sous-domaine.
-
-1. **DNS** : créer un enregistrement **A** du sous-domaine vers l'IP du VPS.
-2. **Serveur** : installer Node.js 22, Nginx, Git et PM2 (`npm install -g pm2`).
-3. **Code et configuration** :
-
-   ```bash
-   git clone https://github.com/Xoriax/scoutly.git /var/www/scoutly
-   cd /var/www/scoutly
-   cp .env.example .env.production   # renseigner les variables
-   npm ci && npm run build
-   pm2 start npm --name scoutly -- start -- -p 3000
-   pm2 save && pm2 startup
-   ```
-
-   Lancer **une seule instance** : le cache et la limitation de débit sont en mémoire.
-
-4. **Nginx** en reverse proxy vers `127.0.0.1:3000`, avec `proxy_read_timeout 120s`
-   (un export peut durer jusqu'à 90 s).
-5. **HTTPS** : `sudo certbot --nginx -d scoutly.mondomaine.fr`.
-
-Mise à jour : `git pull && npm ci && npm run build && pm2 restart scoutly`.
-
-## Feuille de route
-
-- [ ] Fiche détail d'une entreprise (`/entreprises/[siren]`)
-- [ ] Provider Pappers (en attente d'une clé d'API)
-- [ ] Protection de l'accès si l'application n'est pas publique
-
 ## Sources des données
 
 - [API Recherche d'entreprises](https://recherche-entreprises.api.gouv.fr) — DINUM, données
