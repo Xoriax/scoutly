@@ -42,6 +42,9 @@ export interface Company {
   /** Code INSEE de la commune du siège (≠ code postal) */
   codeCommune: string | null;
   departement: string | null;
+  /** Coordonnées GPS du siège (null si inconnues ou non diffusibles) */
+  latitude?: number | null;
+  longitude?: number | null;
   /** Code NAF/APE au format INSEE "62.01Z" */
   codeNaf: string | null;
   libelleNaf: string | null;
@@ -52,7 +55,15 @@ export interface Company {
   trancheEffectif: string | null;
   categorieEntreprise: CategorieEntreprise | null;
   etatAdministratif: EtatAdministratif;
+  /** Date ISO de cessation, si l'entreprise est cessée */
+  dateFermeture?: string | null;
   dirigeants: Dirigeant[];
+  nombreEtablissements?: number | null;
+  nombreEtablissementsOuverts?: number | null;
+  /** Numéro de TVA intracommunautaire */
+  numeroTva?: string | null;
+  /** Labels et certifications en clair : "Qualiopi", "RGE", "ESS"… */
+  labels?: string[];
 
   // Champs optionnels : remplis seulement si le provider les fournit
   chiffreAffaires?: number | null;

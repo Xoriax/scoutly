@@ -16,6 +16,22 @@ const NON_DIFFUSIBLE = "[NON-DIFFUSIBLE]";
 const diffusible = (value: string | null | undefined) =>
   value && value !== NON_DIFFUSIBLE ? value : null;
 
+/** Indicateurs de l'API (champ complements) traduits en labels utiles en prospection */
+const LABELS: Record<string, string> = {
+  est_qualiopi: "Qualiopi",
+  est_rge: "RGE",
+  est_ess: "ESS",
+  est_societe_mission: "Société à mission",
+  est_bio: "Bio",
+  est_organisme_formation: "Organisme de formation",
+  est_patrimoine_vivant: "Entreprise du patrimoine vivant",
+  est_siae: "Insertion (SIAE)",
+  est_achats_responsables: "Achats responsables (RFAR)",
+  est_entrepreneur_spectacle: "Entrepreneur du spectacle",
+  est_association: "Association",
+  est_administration: "Administration",
+};
+
 /**
  * L'API renvoie parfois des entrées fantômes (connues du RNE mais sans aucune donnée INSEE :
  * ni nom, ni siège). On les traite comme inexistantes.
@@ -43,6 +59,8 @@ export function toCompany(result: ApiResult, withEtablissements = false): Compan
     ville: siege?.libelle_commune ?? siege?.libelle_commune_etranger ?? null,
     codeCommune: siege?.commune ?? null,
     departement: siege?.departement ?? null,
+    latitude: coordinate(siege?.latitude),
+    longitude: coordinate(siege?.longitude),
     codeNaf: result.activite_principale,
     libelleNaf: libelleNaf(result.activite_principale),
     dateCreation: result.date_creation,
@@ -50,7 +68,14 @@ export function toCompany(result: ApiResult, withEtablissements = false): Compan
     trancheEffectif: libelleTrancheEffectif(result.tranche_effectif_salarie),
     categorieEntreprise: result.categorie_entreprise,
     etatAdministratif: result.etat_administratif === "C" ? "cessee" : "active",
+    dateFermeture: result.date_fermeture,
     dirigeants: (result.dirigeants ?? []).map(toDirigeant),
+    nombreEtablissements: result.nombre_etablissements,
+    nombreEtablissementsOuverts: result.nombre_etablissements_ouverts,
+    numeroTva: result.tva?.[0] ?? null,
+    labels: Object.entries(LABELS)
+      .filter(([key]) => result.complements?.[key] === true)
+      .map(([, label]) => label),
     chiffreAffaires: finances?.ca ?? null,
     resultatNet: finances?.resultat_net ?? null,
     anneeFinances: finances?.annee ?? null,
@@ -61,6 +86,13 @@ export function toCompany(result: ApiResult, withEtablissements = false): Compan
         .sort((a, b) => Number(b.ouvert) - Number(a.ouvert)),
     }),
   };
+}
+
+/** "48.8315" → 48.8315 ; texte vide ou non diffusible → null */
+function coordinate(value: string | null | undefined): number | null {
+  const text = diffusible(value);
+  const number = text ? Number(text) : NaN;
+  return Number.isFinite(number) ? number : null;
 }
 
 function toEtablissement(e: ApiEtablissement): Etablissement {

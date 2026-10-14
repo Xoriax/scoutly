@@ -27,8 +27,18 @@ export const PARAM = {
   chiffreAffairesMax: "caMax",
   activesUniquement: "actives",
   siegeDansZone: "siege",
+  masquerSuivis: "masquer",
   page: "page",
 } as const;
+
+/**
+ * Options propres à l'application (pas des critères de la source de données) :
+ * appliquées par les routes, pas par le provider.
+ */
+export interface SearchOptions {
+  /** Masquer les entreprises déjà présentes dans le suivi des prospects */
+  masquerSuivis?: boolean;
+}
 
 /** "6201z" ou "62.01Z" → "62.01Z" */
 export function normalizeNaf(raw: string): string {
@@ -103,6 +113,7 @@ const schema = z
     chiffreAffairesMax: euros("Chiffre d'affaires maximum"),
     activesUniquement: flag,
     siegeDansZone: flag,
+    masquerSuivis: flag,
     page: z.coerce
       .number({ error: "Numéro de page invalide" })
       .int("Numéro de page invalide")
@@ -123,7 +134,7 @@ const schema = z
   );
 
 export type ParseResult =
-  | { ok: true; filters: SearchFilters; page: number }
+  | { ok: true; filters: SearchFilters; page: number; options: SearchOptions }
   | { ok: false; error: string };
 
 export function parseSearchParams(params: URLSearchParams): ParseResult {
@@ -134,17 +145,21 @@ export function parseSearchParams(params: URLSearchParams): ParseResult {
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ; ") };
   }
-  const { page, ...rest } = parsed.data;
+  const { page, masquerSuivis, ...rest } = parsed.data;
   // « Siège dans la zone » n'a de sens qu'avec une zone
   if (!rest.regions && !rest.departements && !rest.communes) rest.siegeDansZone = undefined;
   // Retire les clés non renseignées pour garder des filtres compacts
   const filters = Object.fromEntries(
     Object.entries(rest).filter(([, v]) => v !== undefined),
   ) as SearchFilters;
-  return { ok: true, filters, page };
+  return { ok: true, filters, page, options: masquerSuivis ? { masquerSuivis } : {} };
 }
 
-export function toSearchParams(filters: SearchFilters, page?: number): URLSearchParams {
+export function toSearchParams(
+  filters: SearchFilters,
+  page?: number,
+  options: SearchOptions = {},
+): URLSearchParams {
   const params = new URLSearchParams();
   const setList = (name: string, values?: string[]) => {
     if (values?.length) params.set(name, values.join(","));
@@ -166,6 +181,7 @@ export function toSearchParams(filters: SearchFilters, page?: number): URLSearch
   }
   if (filters.activesUniquement) params.set(PARAM.activesUniquement, "1");
   if (filters.siegeDansZone) params.set(PARAM.siegeDansZone, "1");
+  if (options.masquerSuivis) params.set(PARAM.masquerSuivis, "1");
   if (page && page > 1) params.set(PARAM.page, String(page));
   return params;
 }

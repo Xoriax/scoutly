@@ -28,16 +28,17 @@ export interface CollectedExport {
 
 /**
  * Récupère TOUS les résultats d'une recherche en paginant côté serveur,
- * dans la limite de EXPORT_MAX_ROWS lignes et EXPORT_TIMEOUT_MS.
+ * dans la limite de EXPORT_MAX_ROWS lignes et EXPORT_TIMEOUT_MS (sauf options contraires).
  * Passe par l'interface CompanyProvider : fonctionne avec n'importe quel provider,
  * et profite de son cache et de sa limitation de débit.
  */
 export async function collectAll(
   provider: CompanyProvider,
   filters: SearchFilters,
+  options: { maxRows?: number; timeoutMs?: number } = {},
 ): Promise<CollectedExport> {
-  const maxRows = exportMaxRows();
-  const deadline = Date.now() + exportTimeoutMs();
+  const maxRows = options.maxRows ?? exportMaxRows();
+  const deadline = Date.now() + (options.timeoutMs ?? exportTimeoutMs());
   const companies: Company[] = [];
   const seen = new Set<string>();
   let truncated: CollectedExport["truncated"] = null;

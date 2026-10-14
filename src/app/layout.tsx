@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
+import { Suspense } from "react";
+import { MainNav, NavLinks } from "@/components/MainNav";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,11 +32,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col bg-slate-50 text-slate-900">
         <div className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex h-14 max-w-7xl items-center px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4 sm:px-6 lg:px-8">
             <Link href="/" aria-label="Scoutly – accueil" className="rounded-md">
               {/* SVG local : servi tel quel par next/image, sans optimisation */}
               <Image src="/scoutly-logo.svg" alt="Scoutly" width={140} height={32} priority />
             </Link>
+            {/* La page active dépend de l'URL : connue à la requête seulement */}
+            <Suspense fallback={<NavLinks pathname={null} />}>
+              <MainNav />
+            </Suspense>
           </div>
         </div>
         {children}

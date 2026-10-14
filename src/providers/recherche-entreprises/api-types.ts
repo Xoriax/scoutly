@@ -16,6 +16,8 @@ export interface ApiResult {
   nom_complet: string | null;
   nom_raison_sociale: string | null;
   sigle: string | null;
+  nombre_etablissements: number | null;
+  nombre_etablissements_ouverts: number | null;
   siege: ApiSiege | null;
   activite_principale: string | null;
   section_activite_principale: string | null;
@@ -29,6 +31,10 @@ export interface ApiResult {
   tranche_effectif_salarie: string | null;
   /** Bilans par année : { "2024": { ca, resultat_net } } */
   finances: Record<string, { ca: number | null; resultat_net: number | null }> | null;
+  /** Indicateurs complémentaires (labels, certifications…) ; seuls les booléens sont utilisés */
+  complements?: Record<string, unknown> | null;
+  /** Numéros de TVA intracommunautaire actifs */
+  tva?: string[] | null;
   /** Établissements ayant déclenché la correspondance (ex. ceux situés dans la zone filtrée) */
   matching_etablissements?: ApiEtablissement[] | null;
 }
@@ -56,6 +62,9 @@ export interface ApiSiege {
   libelle_commune_etranger: string | null;
   libelle_pays_etranger: string | null;
   departement: string | null;
+  /** Nombres sous forme de texte ("48.8315"), ou "[NON-DIFFUSIBLE]" */
+  latitude?: string | null;
+  longitude?: string | null;
 }
 
 export interface ApiDirigeantPP {

@@ -37,6 +37,7 @@ const etablissementDansZone = (c: Company) => {
 export const EXPORT_COLUMNS: ExportColumn[] = [
   { header: "SIREN", width: 12, kind: "text", value: (c) => c.siren },
   { header: "SIRET du siège", width: 16, kind: "text", value: (c) => c.siretSiege },
+  { header: "N° TVA", width: 16, kind: "text", value: (c) => c.numeroTva ?? null, optional: true },
   { header: "Nom", width: 40, kind: "text", value: (c) => c.nom },
   { header: "Forme juridique", width: 30, kind: "text", value: (c) => c.formeJuridique },
   { header: "Adresse du siège", width: 40, kind: "text", value: (c) => c.adresse },
@@ -61,6 +62,13 @@ export const EXPORT_COLUMNS: ExportColumn[] = [
     value: (c) => c.trancheEffectif?.replace(/\s*\(.*\)\s*$/, "") ?? null,
   },
   { header: "Catégorie", width: 10, kind: "text", value: (c) => c.categorieEntreprise },
+  {
+    header: "Établissements ouverts",
+    width: 12,
+    kind: "integer",
+    value: (c) => c.nombreEtablissementsOuverts ?? null,
+    optional: true,
+  },
   {
     header: "État",
     width: 9,
@@ -89,6 +97,13 @@ export const EXPORT_COLUMNS: ExportColumn[] = [
     optional: true,
   },
   { header: "Dirigeants", width: 60, kind: "text", value: dirigeants },
+  {
+    header: "Labels",
+    width: 30,
+    kind: "text",
+    value: (c) => c.labels?.join(", ") || null,
+    optional: true,
+  },
   { header: "Site web", width: 30, kind: "text", value: (c) => c.siteWeb ?? null, optional: true },
   { header: "Téléphone", width: 16, kind: "text", value: (c) => c.telephone ?? null, optional: true },
   { header: "Email", width: 30, kind: "text", value: (c) => c.email ?? null, optional: true },

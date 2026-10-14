@@ -1,10 +1,4 @@
 import "server-only";
-import {
-  departementOfCommune,
-  departementsOfRegion,
-  expandCommune,
-  regionOfDepartement,
-} from "@/data/referentiels/geo";
 import type { Company } from "@/domain/company";
 import {
   activeFilterKeys,
@@ -19,9 +13,9 @@ import {
 import { ProviderError, type CompanyProvider, type SearchResult } from "@/domain/provider";
 import { globalSingleton, TtlCache } from "@/lib/cache";
 import { fetchJson, RateLimiter } from "@/lib/http";
-import { communesOfDepartement } from "@/lib/localisation";
 import type { ApiSearchResponse } from "./api-types";
 import { isUsableResult, SOURCE_NAME, toCompany } from "./mapper";
+import { resolveZone } from "./zone";
 
 const BASE_URL = "https://recherche-entreprises.api.gouv.fr";
 /** Maximum autorisé par l'API */
@@ -29,12 +23,6 @@ const PER_PAGE = 25;
 /** L'API refuse les requêtes où page * per_page > 10 000 */
 const MAX_RESULTS = 10_000;
 const MAX_PAGE = Math.floor(MAX_RESULTS / PER_PAGE);
-
-/**
- * Longueur maximale de la liste code_commune envoyée à l'API.
- * Au-delà d'environ 8 000 caractères d'URL, l'API répond 414 / 400.
- */
-const MAX_COMMUNE_LIST_CHARS = 6_000;
 
 const SEARCH_TTL_MS = 60 * 60 * 1000;
 const SIREN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -70,6 +58,8 @@ interface ApiPage {
  */
 const MAX_API_PAGES_PER_PAGE = 10;
 const MAX_API_PAGES_PER_REQUEST = 30;
+/** Champs secondaires demandés à l'API (réponse « minimal » + ces blocs) */
+const INCLUDE = "siege,dirigeants,finances,complements,tva";
 /** Nombre d'établissements dans la zone renvoyés par entreprise */
 const MATCHING_ETABLISSEMENTS = 5;
 
@@ -114,7 +104,7 @@ export class RechercheEntreprisesProvider implements CompanyProvider {
     params.set("minimal", "true");
     params.set(
       "include",
-      geographic ? "siege,dirigeants,finances,matching_etablissements" : "siege,dirigeants,finances",
+      geographic ? `${INCLUDE},matching_etablissements` : INCLUDE,
     );
     if (geographic) params.set("limite_matching_etablissements", String(MATCHING_ETABLISSEMENTS));
 
@@ -238,7 +228,7 @@ export class RechercheEntreprisesProvider implements CompanyProvider {
         q: siren,
         per_page: "5",
         minimal: "true",
-        include: "siege,dirigeants,finances",
+        include: INCLUDE,
       });
       const data = await this.fetch<ApiSearchResponse>(`${BASE_URL}/search?${params}`);
       const match = data.results.find((r) => r.siren === siren && isUsableResult(r));
@@ -275,54 +265,4 @@ function toApiParams(filters: SearchFilters, zone: Record<string, string[]>): UR
   if (filters.chiffreAffairesMax !== undefined) params.set("ca_max", String(filters.chiffreAffairesMax));
   if (filters.activesUniquement) params.set("etat_administratif", "A");
   return params;
-}
-
-interface ResolvedZone {
-  params: Record<string, string[]>;
-  /** Vrai si la zone envoyée à l'API est plus large que demandé : filtrage local sur le siège */
-  approximate: boolean;
-}
-
-/**
- * Les paramètres region / departement / code_commune de l'API se cumulent (ET),
- * alors que SearchFilters demande « dans l'une des zones » (OU).
- * On ramène donc toute la zone à un seul paramètre :
- * 1. les zones couvertes par une zone plus large sont retirées (Toulouse + Haute-Garonne → 31) ;
- * 2. une seule sorte de zone → paramètre natif (régions + départements → départements) ;
- * 3. villes + départements/régions → liste de communes, si elle tient dans l'URL (résultat exact) ;
- * 4. sinon → départements couvrant toutes les zones, puis filtrage local sur le siège.
- */
-async function resolveZone(filters: SearchFilters): Promise<ResolvedZone> {
-  const regions = filters.regions ?? [];
-  const inRegions = (dep: string) => regions.includes(regionOfDepartement(dep) ?? "");
-  const departements = (filters.departements ?? []).filter((d) => !inRegions(d));
-  const communes = (filters.communes ?? []).filter((c) => {
-    const dep = departementOfCommune(c);
-    return !departements.includes(dep) && !inRegions(dep);
-  });
-  const coveringDeps = [...regions.flatMap(departementsOfRegion), ...departements];
-
-  if (communes.length === 0) {
-    if (regions.length > 0 && departements.length > 0) {
-      return { params: { departement: coveringDeps }, approximate: false };
-    }
-    if (regions.length > 0) return { params: { region: regions }, approximate: false };
-    if (departements.length > 0) return { params: { departement: departements }, approximate: false };
-    return { params: {}, approximate: false };
-  }
-  if (coveringDeps.length === 0) {
-    return { params: { code_commune: communes.flatMap(expandCommune) }, approximate: false };
-  }
-
-  try {
-    const lists = await Promise.all(coveringDeps.map(communesOfDepartement));
-    const all = [...new Set([...lists.flat(), ...communes].flatMap(expandCommune))];
-    if (all.join(",").length <= MAX_COMMUNE_LIST_CHARS) {
-      return { params: { code_commune: all }, approximate: false };
-    }
-  } catch {
-    // Référentiel des communes indisponible : on passe au repli
-  }
-  const deps = new Set([...coveringDeps, ...communes.map(departementOfCommune)]);
-  return { params: { departement: [...deps] }, approximate: true };
 }

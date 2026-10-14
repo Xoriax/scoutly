@@ -6,6 +6,7 @@ import { describeFilters } from "@/lib/export/criteria";
 import { buildCsv } from "@/lib/export/csv";
 import { buildXlsx } from "@/lib/export/xlsx";
 import { formatInteger } from "@/lib/format";
+import { suivisSet } from "@/lib/prospects";
 import { parseSearchParams } from "@/lib/search-params";
 import { getProvider } from "@/providers";
 
@@ -26,7 +27,12 @@ export async function GET(request: NextRequest) {
   try {
     const provider = getProvider();
     const collected = await collectAll(provider, parsed.filters);
-    const { companies, truncated } = collected;
+    const { truncated } = collected;
+    // Option « masquer les entreprises déjà suivies »
+    const suivis = parsed.options.masquerSuivis ? suivisSet() : null;
+    const companies = suivis
+      ? collected.companies.filter((c) => !suivis.has(c.siren))
+      : collected.companies;
 
     const date = new Date().toISOString().slice(0, 10);
     const filename = `scoutly-entreprises-${date}.${format}`;

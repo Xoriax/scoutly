@@ -43,3 +43,6 @@ next-env.d.ts
 
 # généré automatiquement par next dev
 AGENTS.md
+
+# base SQLite locale (recherches sauvegardées, suivi des prospects)
+/data/

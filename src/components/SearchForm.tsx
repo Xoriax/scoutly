@@ -10,7 +10,7 @@ import {
 } from "@/data/referentiels/labels";
 import { localLocalisation, type Localisation } from "@/data/referentiels/geo";
 import { formatEuros } from "@/lib/format";
-import { PARAM, parseSearchParams } from "@/lib/search-params";
+import { PARAM, parseSearchParams, type SearchOptions } from "@/lib/search-params";
 import { knownCommune, LocationPicker, rememberLocalisations } from "./LocationPicker";
 
 interface FormState {
@@ -26,6 +26,7 @@ interface FormState {
   caMax: string;
   actives: boolean;
   siege: boolean;
+  masquer: boolean;
 }
 
 /** Paliers proposés pour le chiffre d'affaires (en euros) */
@@ -46,7 +47,7 @@ function toLocalisations(filters: SearchFilters | null): Localisation[] {
   ].filter((l): l is Localisation => l !== null);
 }
 
-function toFormState(filters: SearchFilters | null): FormState {
+function toFormState(filters: SearchFilters | null, options: SearchOptions = {}): FormState {
   const tranches = filters?.tranchesEffectif ?? [];
   return {
     q: filters?.q ?? "",
@@ -63,6 +64,7 @@ function toFormState(filters: SearchFilters | null): FormState {
     actives: filters ? Boolean(filters.activesUniquement) : true,
     // Par défaut on cherche les entreprises dont le siège est dans la zone
     siege: filters ? Boolean(filters.siegeDansZone) : true,
+    masquer: Boolean(options.masquerSuivis),
   };
 }
 
@@ -79,11 +81,12 @@ function trancheRange(min: string, max: string): string[] {
 interface Props {
   /** Filtres de la recherche en cours (null si aucune recherche) */
   initialFilters: SearchFilters | null;
-  onSubmit: (filters: SearchFilters) => void;
+  initialOptions: SearchOptions;
+  onSubmit: (filters: SearchFilters, options: SearchOptions) => void;
 }
 
-export function SearchForm({ initialFilters, onSubmit }: Props) {
-  const [form, setForm] = useState<FormState>(() => toFormState(initialFilters));
+export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) {
+  const [form, setForm] = useState<FormState>(() => toFormState(initialFilters, initialOptions));
   const [error, setError] = useState<string | null>(null);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
@@ -141,13 +144,14 @@ export function SearchForm({ initialFilters, onSubmit }: Props) {
     put(PARAM.chiffreAffairesMax, form.caMax);
     if (form.actives) params.set(PARAM.activesUniquement, "1");
     if (form.siege && hasZone) params.set(PARAM.siegeDansZone, "1");
+    if (form.masquer) params.set(PARAM.masquerSuivis, "1");
 
     const parsed = parseSearchParams(params);
     if (!parsed.ok) {
       setError(parsed.error);
       return;
     }
-    const { filters } = parsed;
+    const { filters, options } = parsed;
     const hasCriterion =
       filters.q ||
       filters.codesNaf ||
@@ -163,7 +167,7 @@ export function SearchForm({ initialFilters, onSubmit }: Props) {
       return;
     }
     setError(null);
-    onSubmit(filters);
+    onSubmit(filters, options);
   }
 
   function handleReset() {
@@ -331,6 +335,12 @@ export function SearchForm({ initialFilters, onSubmit }: Props) {
                 ? "Sinon, une entreprise ressort dès qu'un de ses établissements est dans la zone."
                 : "Renseignez une localisation."
             }
+          />
+          <Checkbox
+            checked={form.masquer}
+            onChange={(v) => set("masquer", v)}
+            label="Masquer les entreprises déjà suivies"
+            hint="Celles qui ont un statut dans le suivi des prospects."
           />
         </div>
       </div>

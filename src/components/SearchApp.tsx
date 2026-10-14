@@ -3,15 +3,20 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { FILTER_LABELS, hasAnyFilter, type SearchFilters } from "@/domain/filters";
-import type { SearchResult } from "@/domain/provider";
+import type { SearchResponse } from "@/lib/api-types";
 import { formatInteger } from "@/lib/format";
-import { parseSearchParams, toSearchParams } from "@/lib/search-params";
+import { parseSearchParams, toSearchParams, type SearchOptions } from "@/lib/search-params";
+import { CompanyMap, type MapPoint } from "./CompanyMap";
 import { ExportButton } from "./ExportButton";
 import { Pagination } from "./Pagination";
 import { ResultsTable } from "./ResultsTable";
+import { SaveSearchButton } from "./SaveSearchButton";
 import { SearchForm } from "./SearchForm";
 
-type Outcome = { query: string } & ({ data: SearchResult } | { error: string });
+type Outcome = { query: string } & ({ data: SearchResponse } | { error: string });
+type View = "tableau" | "carte";
+
+const VIEW_KEY = "scoutly.vue";
 
 /**
  * Page de recherche : l'état (filtres + page) vit dans l'URL,
@@ -25,6 +30,7 @@ export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
 
   const parsed = useMemo(() => parseSearchParams(new URLSearchParams(query)), [query]);
   const filters = parsed.ok && hasAnyFilter(parsed.filters) ? parsed.filters : null;
+  const options: SearchOptions = parsed.ok ? parsed.options : {};
 
   // Résultat associé à la requête qui l'a produit : s'il ne correspond pas à l'URL, on charge
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -39,7 +45,7 @@ export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
         const body = await res.json();
         setOutcome(
           res.ok
-            ? { query, data: body as SearchResult }
+            ? { query, data: body as SearchResponse }
             : { query, error: body.error ?? `Erreur ${res.status}` },
         );
       })
@@ -53,8 +59,8 @@ export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  const hrefFor = (f: SearchFilters, p: number) => {
-    const qs = toSearchParams(f, p).toString();
+  const hrefFor = (f: SearchFilters, p: number, o: SearchOptions) => {
+    const qs = toSearchParams(f, p, o).toString();
     return qs ? `${pathname}?${qs}` : pathname;
   };
 
@@ -63,7 +69,8 @@ export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
       <SearchForm
         key={query}
         initialFilters={filters}
-        onSubmit={(f) => router.push(hrefFor(f, 1))}
+        initialOptions={options}
+        onSubmit={(f, o) => router.push(hrefFor(f, 1, o))}
       />
 
       {!parsed.ok && <Alert tone="error">{parsed.error}</Alert>}
@@ -81,10 +88,12 @@ export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
       {filters && current && "data" in current && (
         <Results
           result={current.data}
-          exportQuery={toSearchParams(filters).toString()}
+          searchQuery={query}
+          criteriaQuery={toSearchParams(filters, 1, options).toString()}
+          nameSuggestion={suggestName(filters)}
           exportMaxRows={exportMaxRows}
-          hrefFor={(p) => hrefFor(filters, p)}
-          onNavigate={(p) => router.push(hrefFor(filters, p))}
+          hrefFor={(p) => hrefFor(filters, p, options)}
+          onNavigate={(p) => router.push(hrefFor(filters, p, options))}
         />
       )}
     </div>
@@ -93,13 +102,19 @@ export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
 
 function Results({
   result,
-  exportQuery,
+  searchQuery,
+  criteriaQuery,
+  nameSuggestion,
   exportMaxRows,
   hrefFor,
   onNavigate,
 }: {
-  result: SearchResult;
-  exportQuery: string;
+  result: SearchResponse;
+  /** Paramètres complets de l'URL (page incluse) */
+  searchQuery: string;
+  /** Critères seuls, sans la page (export, sauvegarde) */
+  criteriaQuery: string;
+  nameSuggestion: string;
   exportMaxRows: number;
   hrefFor: (page: number) => string;
   onNavigate: (page: number) => void;
@@ -107,6 +122,44 @@ function Results({
   const { companies, page, totalPages, total, totalIsApproximate, scanned, hasNextPage } = result;
   const truncated = totalPages !== null && total > totalPages * result.perPage;
   const localLabels = result.locallyFilteredFilters.map((k) => FILTER_LABELS[k]).join(", ");
+
+  const [view, setView] = useState<View>("tableau");
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (window.localStorage.getItem(VIEW_KEY) === "carte") setView("carte");
+    } catch {
+      // Stockage indisponible : vue tableau par défaut
+    }
+  }, []);
+  function changeView(next: View) {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      // Préférence non mémorisée
+    }
+  }
+
+  const retour = `?retour=${encodeURIComponent(searchQuery)}`;
+  const points = useMemo<MapPoint[]>(
+    () =>
+      companies.flatMap((c) =>
+        c.latitude != null && c.longitude != null
+          ? [
+              {
+                siren: c.siren,
+                nom: c.nom,
+                latitude: c.latitude,
+                longitude: c.longitude,
+                detail: [c.ville, c.libelleNaf].filter(Boolean).join(" · "),
+                href: `/entreprises/${c.siren}${retour}`,
+              },
+            ]
+          : [],
+      ),
+    [companies, retour],
+  );
 
   return (
     <section aria-label="Résultats" className="flex flex-col gap-4">
@@ -133,37 +186,76 @@ function Results({
             voire aucun, et le total affiché est une estimation haute.
           </Alert>
         ))}
+      {result.masques > 0 && (
+        <Alert tone="info">
+          {result.masques} entreprise{result.masques > 1 ? "s" : ""} déjà suivie
+          {result.masques > 1 ? "s" : ""} masquée{result.masques > 1 ? "s" : ""} sur cette page.
+        </Alert>
+      )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-slate-700">
-          {total === 0 ? (
-            "Aucune entreprise trouvée."
-          ) : (
-            <>
-              {totalIsApproximate ? "Jusqu'à " : ""}
-              <strong className="text-slate-900">{formatInteger(total)}</strong> entreprise
-              {total > 1 ? "s" : ""} trouvée{total > 1 ? "s" : ""}
-              {truncated && (
-                <span className="text-slate-500">
-                  {" "}
-                  (seules les {formatInteger(totalPages * result.perPage)} premières sont
-                  consultables : affinez la recherche)
-                </span>
-              )}
-            </>
-          )}
-        </p>
-        {total > 0 && <ExportButton query={exportQuery} maxRows={exportMaxRows} />}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-slate-700">
+            {total === 0 ? (
+              "Aucune entreprise trouvée."
+            ) : (
+              <>
+                {totalIsApproximate ? "Jusqu'à " : ""}
+                <strong className="text-slate-900">{formatInteger(total)}</strong> entreprise
+                {total > 1 ? "s" : ""} trouvée{total > 1 ? "s" : ""}
+                {truncated && (
+                  <span className="text-slate-500">
+                    {" "}
+                    (seules les {formatInteger(totalPages * result.perPage)} premières sont
+                    consultables : affinez la recherche)
+                  </span>
+                )}
+              </>
+            )}
+          </p>
+          <SaveSearchButton query={criteriaQuery} suggestion={nameSuggestion} />
+        </div>
+        {total > 0 && <ExportButton query={criteriaQuery} maxRows={exportMaxRows} />}
       </div>
 
+      {companies.length > 0 && (
+        <div role="tablist" aria-label="Affichage" className="flex gap-1 self-start rounded-lg bg-slate-200/70 p-1 text-sm">
+          {(["tableau", "carte"] as const).map((v) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => changeView(v)}
+              className={`rounded-md px-3 py-1.5 font-medium ${
+                view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {v === "tableau" ? "Tableau" : "Carte"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {companies.length > 0 ? (
-        <ResultsTable companies={companies} />
+        view === "tableau" ? (
+          <ResultsTable companies={companies} searchQuery={searchQuery} suivis={result.suivis} />
+        ) : (
+          <div className="flex flex-col gap-2">
+            <CompanyMap points={points} />
+            <p className="text-xs text-slate-500">
+              Sièges des entreprises de cette page.
+              {points.length < companies.length &&
+                ` ${companies.length - points.length} sans position connue (adresse non diffusible ou non géolocalisée).`}
+            </p>
+          </div>
+        )
       ) : (
         total > 0 && (
           <p className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600">
             {scanned
               ? "Aucune autre entreprise ne correspond à ces critères."
-              : "Aucun résultat sur cette page après filtrage local."}
+              : "Aucun résultat sur cette page après filtrage."}
             {hasNextPage && " Essayez la page suivante."}
           </p>
         )
@@ -181,6 +273,12 @@ function Results({
       )}
     </section>
   );
+}
+
+/** Nom proposé par défaut pour enregistrer la recherche */
+function suggestName(filters: SearchFilters): string {
+  const parts = [filters.q, filters.codesNaf?.join(", "), filters.sectionsNaf?.join(", ")].filter(Boolean);
+  return parts.length > 0 ? String(parts.join(" · ")).slice(0, 120) : "Ma recherche";
 }
 
 function LoadingState() {
