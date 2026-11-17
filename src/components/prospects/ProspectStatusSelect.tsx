@@ -1,8 +1,10 @@
 "use client";
 
+import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { PROSPECT_STATUTS, STATUT_LABELS, type ProspectStatut } from "@/domain/prospect";
-import { STATUT_STYLES } from "./company-format";
+import { STATUT_STYLES } from "@/components/company/company-format";
 
 interface Props {
   siren: string;
@@ -12,10 +14,15 @@ interface Props {
   /** Notes existantes, conservées lors d'un changement de statut */
   notes?: string;
   onChange?: (statut: ProspectStatut | null) => void;
+  /** Recharge la page serveur après l'enregistrement (liste ou pipeline qui dépend du statut) */
+  refresh?: boolean;
+  /** Paramètres de la recherche d'où vient le prospect, conservés comme « recherche d'origine » */
+  origine?: string;
 }
 
 /** Changement rapide du statut de suivi, enregistré immédiatement */
-export function ProspectStatusSelect({ siren, nom, ville, statut, notes, onChange }: Props) {
+export function ProspectStatusSelect({ siren, nom, ville, statut, notes, onChange, refresh, origine }: Props) {
+  const router = useRouter();
   const [value, setValue] = useState<ProspectStatut | null>(statut);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
@@ -31,17 +38,43 @@ export function ProspectStatusSelect({ siren, nom, ville, statut, notes, onChang
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             // Les notes ne sont connues que sur la fiche : on les relit pour ne pas les écraser
-            body: JSON.stringify({ nom, ville, statut: next, notes: notes ?? (await currentNotes(siren)) }),
+            body: JSON.stringify({
+              nom,
+              ville,
+              statut: next,
+              notes: notes ?? (await currentNotes(siren)),
+              ...(origine ? { origine } : {}),
+            }),
           })
         : await fetch(`/api/prospects/${siren}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
       onChange?.(next);
+      if (refresh) router.refresh();
     } catch {
       setValue(previous);
       setError(true);
     } finally {
       setSaving(false);
     }
+  }
+
+  // Entreprise pas encore suivie : un bouton « Suivre » (statut « À qualifier »), comme sur la maquette.
+  // Une fois suivie, le menu permet de changer le statut ou d'arrêter le suivi.
+  if (value === null) {
+    return (
+      <button
+        type="button"
+        onClick={() => update("a_qualifier")}
+        disabled={saving}
+        aria-label={`Suivre ${nom}`}
+        title={error ? "Enregistrement impossible, réessayez" : undefined}
+        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60 ${
+          error ? "bg-red-700" : "bg-indigo-600 hover:bg-indigo-500"
+        }`}
+      >
+        <Plus aria-hidden className="size-3.5" /> Suivre
+      </button>
+    );
   }
 
   return (

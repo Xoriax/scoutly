@@ -1,9 +1,11 @@
 "use client";
 
+import { RefreshCw, Search, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { NouvelleEntreprise, SavedSearch } from "@/domain/prospect";
+import { Badge } from "@/components/ui/Badge";
 import { formatDate } from "@/lib/format";
 
 interface Props {
@@ -75,105 +77,107 @@ export function SavedSearchCard({ search, criteres, nouvelles }: Props) {
   }
 
   return (
-    <article className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <article className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-900">{search.nom}</h2>
-          <p className="text-xs text-slate-500">Enregistrée le {formatDateTime(search.createdAt)}</p>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-slate-900">{search.nom}</h2>
+          <p className="mt-0.5 text-[11px] text-slate-500">Enregistrée le {formatDateTime(search.createdAt)}</p>
         </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/?${search.query}`}
-            className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
-          >
-            Lancer la recherche
-          </Link>
-          <button
-            type="button"
-            onClick={remove}
-            disabled={busy !== null}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
-          >
-            Supprimer
-          </button>
-        </div>
+        {alerte && <Badge tone="positive">Recherche surveillée</Badge>}
       </header>
 
-      <dl className="grid grid-cols-[minmax(0,12rem)_1fr] gap-x-4 gap-y-1 text-sm">
-        {criteres.map(([label, value]) => (
-          <div key={label} className="contents">
-            <dt className="text-slate-500">{label}</dt>
-            <dd className="text-slate-800">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <p className="text-xs text-slate-500">
+        {criteres.map(([label, value]) => `${label} : ${value}`).join(" · ")}
+      </p>
 
-      <section className="flex flex-col gap-3 rounded-lg bg-slate-50 p-4">
-        <h3 className="text-sm font-semibold text-slate-700">Alerte « nouvelles entreprises »</h3>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-slate-600">Email du destinataire (facultatif)</span>
+      <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href={`/?${search.query}`}
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-500"
+        >
+          <Search aria-hidden className="size-4" /> Relancer la recherche
+        </Link>
+        <button
+          type="button"
+          onClick={runNow}
+          disabled={busy !== null}
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+        >
+          <RefreshCw aria-hidden className={`size-4 ${busy === "run" ? "animate-spin" : ""}`} />
+          {busy === "run" ? "Vérification…" : "Vérifier les nouveautés"}
+        </button>
+        <button
+          type="button"
+          onClick={remove}
+          disabled={busy !== null}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-2 text-xs text-slate-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50"
+        >
+          <Trash2 aria-hidden className="size-4" /> Supprimer
+        </button>
+      </div>
+
+      <label className="flex items-start gap-2.5 text-sm text-slate-900">
+        <input
+          type="checkbox"
+          checked={alerte}
+          disabled={busy !== null}
+          onChange={() => saveAlert(!alerte)}
+          className="mt-1 size-4 accent-indigo-600"
+        />
+        <span>
+          Alerte nouvelles entreprises
+          <small className="block text-[11px] text-slate-500">
+            Détecte les entreprises jamais vues dans cette recherche.
+          </small>
+        </span>
+      </label>
+
+      {alerte && (
+        <div className="flex flex-wrap items-end gap-3 pl-6">
+          <label className="flex flex-col gap-1 text-xs text-slate-500">
+            Email du destinataire (facultatif)
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Adresse par défaut du serveur"
-              className="w-72 rounded-lg border border-slate-300 bg-white px-3 py-1.5"
+              className="w-72 max-w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-900"
             />
           </label>
           <button
             type="button"
-            onClick={() => saveAlert(!alerte)}
+            onClick={() => saveAlert(true)}
             disabled={busy !== null}
-            className={`rounded-lg px-3 py-2 text-sm font-medium disabled:opacity-50 ${
-              alerte
-                ? "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-                : "bg-emerald-600 text-white hover:bg-emerald-500"
-            }`}
+            className="pb-2 text-xs font-medium text-indigo-700 hover:underline disabled:opacity-50"
           >
-            {alerte ? "Désactiver l'alerte" : "Activer l'alerte"}
-          </button>
-          {alerte && (
-            <button
-              type="button"
-              onClick={() => saveAlert(true)}
-              disabled={busy !== null}
-              className="text-sm text-indigo-700 hover:underline disabled:opacity-50"
-            >
-              Enregistrer l&apos;email
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={runNow}
-            disabled={busy !== null}
-            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-          >
-            {busy === "run" ? "Vérification…" : "Vérifier maintenant"}
+            Enregistrer l&apos;email
           </button>
         </div>
-        <p className="text-xs text-slate-500">
-          {alerte ? "Alerte active." : "Alerte inactive."}{" "}
+      )}
+
+      <div className="border-t border-slate-200 pt-3 text-xs text-slate-500">
+        <p>
           {search.lastRunAt
             ? `Dernière vérification le ${formatDateTime(search.lastRunAt)}${
                 search.lastNewCount !== null ? ` : ${search.lastNewCount} nouvelle(s).` : "."
               }`
             : "Jamais vérifiée : la première vérification sert de référence."}
         </p>
-        {search.lastError && (
-          <p className="text-xs text-amber-800">Dernière vérification : {search.lastError}</p>
-        )}
+        {search.lastError && <p className="mt-1 text-amber-800">Dernière vérification : {search.lastError}</p>}
         {message && (
-          <p role="status" className={`text-sm ${message.error ? "text-red-700" : "text-emerald-700"}`}>
+          <p role="status" className={`mt-1 text-sm ${message.error ? "text-red-700" : "text-indigo-700"}`}>
             {message.text}
           </p>
         )}
-      </section>
+      </div>
 
       {nouvelles.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-slate-700">Nouvelles entreprises détectées</h3>
-          <ul className="divide-y divide-slate-100 text-sm">
+        <section className="flex flex-col gap-2 rounded-lg bg-indigo-50 p-4">
+          <h3 className="text-xs font-semibold text-indigo-700">
+            {nouvelles.length} nouvelle{nouvelles.length > 1 ? "s" : ""} entreprise{nouvelles.length > 1 ? "s" : ""} détectée
+            {nouvelles.length > 1 ? "s" : ""}
+          </h3>
+          <ul className="divide-y divide-indigo-100 text-sm">
             {nouvelles.map((n) => (
               <li key={n.siren} className="flex flex-wrap items-baseline justify-between gap-2 py-1.5">
                 <span>

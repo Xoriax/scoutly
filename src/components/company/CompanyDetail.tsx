@@ -2,9 +2,9 @@ import type { Company } from "@/domain/company";
 import type { Prospect } from "@/domain/prospect";
 import { libelleDepartement } from "@/data/referentiels/labels";
 import { formatDate, formatEuros, formatInteger } from "@/lib/format";
-import { CompanyMap } from "./CompanyMap";
-import { EtatBadge, formatSiren, StatutBadge } from "./company-format";
-import { ProspectEditor } from "./ProspectEditor";
+import { CompanyMap } from "@/components/company/CompanyMap";
+import { EtatBadge, formatSiren, StatutBadge } from "@/components/company/company-format";
+import { ProspectEditor } from "@/components/prospects/ProspectEditor";
 
 /** "35600000000048" → "356 000 000 00048" */
 function formatSiret(siret: string): string {

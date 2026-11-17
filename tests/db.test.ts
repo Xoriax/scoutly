@@ -10,6 +10,7 @@ import {
   statutsOf,
   suivisSet,
 } from "@/lib/prospects";
+import { getDashboardStats } from "@/lib/dashboard";
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -132,5 +133,51 @@ describe("recherches sauvegardées", () => {
     deleteSavedSearch(id, db);
     const { n } = db.prepare("SELECT count(*) AS n FROM saved_search_seen").get() as { n: number };
     expect(n).toBe(0);
+  });
+});
+
+describe("fiche prospect enrichie", () => {
+  const base = { siren: "111111111", nom: "A", ville: null, statut: "a_contacter" as const, notes: "" };
+
+  it("conserve contact, montant et prochaine action lors d'un simple changement de statut", () => {
+    saveProspect(
+      { ...base, contact: "Camille", email: "c@a.fr", montant: 12000, prochaineAction: "Envoyer le devis" },
+      db,
+    );
+    saveProspect({ ...base, statut: "contacte" }, db);
+    expect(getProspect("111111111", db)).toMatchObject({
+      statut: "contacte",
+      contact: "Camille",
+      email: "c@a.fr",
+      montant: 12000,
+      prochaineAction: "Envoyer le devis",
+    });
+  });
+
+  it("permet d'effacer le montant explicitement (null)", () => {
+    saveProspect({ ...base, montant: 5000 }, db);
+    saveProspect({ ...base, montant: null }, db);
+    expect(getProspect("111111111", db)?.montant).toBeNull();
+  });
+});
+
+describe("tableau de bord", () => {
+  it("agrège prospects, pipeline ouvert et alertes", () => {
+    saveProspect({ siren: "111111111", nom: "A", ville: null, statut: "interesse", notes: "", montant: 10000, prochaineAction: "Devis" }, db);
+    saveProspect({ siren: "222222222", nom: "B", ville: null, statut: "pas_interesse", notes: "", montant: 99999 }, db);
+    saveProspect({ siren: "333333333", nom: "C", ville: null, statut: "a_contacter", notes: "" }, db);
+
+    const { id } = createSavedSearch({ nom: "S", query: "q=x" }, db);
+    updateSavedSearch(id, { alerteActive: true }, db);
+    recordRun(id, [company("444444444")], db);
+    recordRun(id, [company("444444444"), company("555555555", "NOUVELLE")], db);
+
+    const stats = getDashboardStats(db);
+    expect(stats.prospects).toBe(3);
+    expect(stats.parStatut).toMatchObject({ interesse: 1, a_contacter: 1, pas_interesse: 1 });
+    // « Pas intéressé » n'entre pas dans le pipeline
+    expect(stats).toMatchObject({ pipelineMontant: 10000, opportunites: 1 });
+    expect(stats).toMatchObject({ recherches: 1, recherchesSurveillees: 1, nouvellesEntreprises: 1 });
+    expect(stats.recentes.map((n) => n.nom)).toEqual(["NOUVELLE"]);
   });
 });

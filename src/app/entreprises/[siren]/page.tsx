@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { CompanyDetail } from "@/components/CompanyDetail";
+import { CompanyDetail } from "@/components/company/CompanyDetail";
 import { loadCompany } from "@/lib/company-loader";
 import { getProspect } from "@/lib/prospects";
 
@@ -16,7 +16,7 @@ export async function generateMetadata({
 
 export default function CompanyPage({ params, searchParams }: PageProps<"/entreprises/[siren]">) {
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+    <main className="w-full px-4 py-8 sm:px-6 lg:px-8">
       {/* Le SIREN n'est connu qu'à la requête : contenu chargé dans une frontière Suspense */}
       <Suspense fallback={<DetailSkeleton />}>
         <Content params={params} searchParams={searchParams} />

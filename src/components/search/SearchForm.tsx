@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { Search } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { hasZone as filtersHaveZone, type SearchFilters } from "@/domain/filters";
 import {
   NAF_OPTIONS,
@@ -83,9 +85,11 @@ interface Props {
   initialFilters: SearchFilters | null;
   initialOptions: SearchOptions;
   onSubmit: (filters: SearchFilters, options: SearchOptions) => void;
+  /** Actions à droite de la barre du bas (enregistrer la recherche) ; hors du <form> pour pouvoir ouvrir leur propre formulaire */
+  actions?: ReactNode;
 }
 
-export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) {
+export function SearchForm({ initialFilters, initialOptions, onSubmit, actions }: Props) {
   const [form, setForm] = useState<FormState>(() => toFormState(initialFilters, initialOptions));
   const [error, setError] = useState<string | null>(null);
 
@@ -93,6 +97,9 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
     setForm((f) => ({ ...f, [key]: value }));
 
   const hasZone = form.localisations.length > 0;
+  const [advanced, setAdvanced] = useState(() =>
+    Boolean(form.naf || form.creeApres || form.creeAvant || form.caMin || form.caMax),
+  );
 
   // Recherche rouverte depuis une URL : on récupère le nom des villes inconnues
   useEffect(() => {
@@ -181,13 +188,17 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
   ].sort((a, b) => a - b);
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6"
-      noValidate
-    >
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Field label="Mot-clé" className="sm:col-span-2" hint="Nom, dirigeant, adresse, SIREN…">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <form id="search-form" onSubmit={handleSubmit} noValidate>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-slate-900">Vos critères de recherche</h2>
+          <span className="rounded bg-slate-100 px-2 py-1 text-[11px] text-slate-500">
+            API Recherche d&apos;entreprises
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.25fr_1fr]">
+          <Field label="Mot-clé" hint="Nom, dirigeant, adresse, SIREN…">
           <input
             type="search"
             value={form.q}
@@ -196,8 +207,7 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
             className={inputClass}
           />
         </Field>
-
-        <Field label="Secteur d'activité">
+          <Field label="Secteur d'activité">
           <select
             value={form.secteur}
             onChange={(e) => set("secteur", e.target.value)}
@@ -211,8 +221,59 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
             ))}
           </select>
         </Field>
+          <Field
+          label="Localisation"
+         
+          hint="Ajoutez autant de zones que nécessaire, même de types différents : Paris, Toulouse, Île-de-France, Gironde, 31000…"
+        >
+          <LocationPicker
+            value={form.localisations}
+            onChange={(v) => set("localisations", v)}
+            inputClassName={inputClass}
+          />
+        </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Effectif minimum">
+          <select
+            value={form.effectifMin}
+            onChange={(e) => set("effectifMin", e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Indifférent</option>
+            {TRANCHE_OPTIONS.map((o) => (
+              <option key={o.code} value={o.code}>
+                {shortTranche(o.label)}
+              </option>
+            ))}
+          </select>
+        </Field>
+            <Field label="Effectif maximum">
+          <select
+            value={form.effectifMax}
+            onChange={(e) => set("effectifMax", e.target.value)}
+            className={inputClass}
+          >
+            <option value="">Indifférent</option>
+            {TRANCHE_OPTIONS.map((o) => (
+              <option key={o.code} value={o.code}>
+                {shortTranche(o.label)}
+              </option>
+            ))}
+          </select>
+        </Field>
+          </div>
+        </div>
 
-        <Field label="Code NAF" hint="Un ou plusieurs, séparés par des virgules">
+        <details
+          open={advanced}
+          onToggle={(e) => setAdvanced(e.currentTarget.open)}
+          className="mt-4 rounded-lg border border-slate-200"
+        >
+          <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900">
+            Critères avancés <span className="font-normal text-slate-400">· code NAF, date de création, chiffre d&apos;affaires</span>
+          </summary>
+          <div className="grid grid-cols-2 gap-3 border-t border-slate-200 p-3 md:grid-cols-5">
+            <Field label="Code NAF" hint="Un ou plusieurs, séparés par des virgules">
           <input
             list="naf-options"
             value={form.naf}
@@ -228,50 +289,7 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
             ))}
           </datalist>
         </Field>
-
-        <Field
-          label="Localisation"
-          className="sm:col-span-2"
-          hint="Ajoutez autant de zones que nécessaire, même de types différents : Paris, Toulouse, Île-de-France, Gironde, 31000…"
-        >
-          <LocationPicker
-            value={form.localisations}
-            onChange={(v) => set("localisations", v)}
-            inputClassName={inputClass}
-          />
-        </Field>
-
-        <Field label="Effectif minimum">
-          <select
-            value={form.effectifMin}
-            onChange={(e) => set("effectifMin", e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Indifférent</option>
-            {TRANCHE_OPTIONS.map((o) => (
-              <option key={o.code} value={o.code}>
-                {shortTranche(o.label)}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="Effectif maximum">
-          <select
-            value={form.effectifMax}
-            onChange={(e) => set("effectifMax", e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Indifférent</option>
-            {TRANCHE_OPTIONS.map((o) => (
-              <option key={o.code} value={o.code}>
-                {shortTranche(o.label)}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label="Créée après le">
+            <Field label="Créée après le">
           <input
             type="date"
             value={form.creeApres}
@@ -279,8 +297,7 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
             className={inputClass}
           />
         </Field>
-
-        <Field label="Créée avant le">
+            <Field label="Créée avant le">
           <input
             type="date"
             value={form.creeAvant}
@@ -288,8 +305,7 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
             className={inputClass}
           />
         </Field>
-
-        <Field label="CA minimum">
+            <Field label="CA minimum">
           <select
             value={form.caMin}
             onChange={(e) => set("caMin", e.target.value)}
@@ -303,8 +319,7 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
             ))}
           </select>
         </Field>
-
-        <Field label="CA maximum">
+            <Field label="CA maximum">
           <select
             value={form.caMax}
             onChange={(e) => set("caMax", e.target.value)}
@@ -318,8 +333,10 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
             ))}
           </select>
         </Field>
+          </div>
+        </details>
 
-        <div className="flex flex-col justify-end gap-2 sm:col-span-2 lg:col-span-4">
+        <div className="my-4 flex flex-wrap items-start gap-x-5 gap-y-2">
           <Checkbox
             checked={form.actives}
             onChange={(v) => set("actives", v)}
@@ -343,35 +360,44 @@ export function SearchForm({ initialFilters, initialOptions, onSubmit }: Props) 
             hint="Celles qui ont un statut dans le suivi des prospects."
           />
         </div>
-      </div>
 
-      {error && (
-        <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </p>
-      )}
+        {error && (
+          <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+      </form>
 
-      <div className="mt-6 flex flex-wrap gap-3">
-        <button
-          type="submit"
-          className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-        >
-          Rechercher
-        </button>
-        <button
-          type="button"
-          onClick={handleReset}
-          className="rounded-lg border border-slate-300 bg-white px-5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
-          Réinitialiser
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="submit"
+            form="search-form"
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          >
+            <Search aria-hidden className="size-4" /> Rechercher
+          </button>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Réinitialiser
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {actions}
+          <Link href="/recherches" className="text-xs font-medium text-indigo-700 hover:underline">
+            Mes recherches →
+          </Link>
+        </div>
       </div>
-    </form>
+    </div>
   );
 }
 
 const inputClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200";
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200";
 
 /** "Unité non employeuse (pas de salarié…)" → "Unité non employeuse" */
 function shortTranche(label: string): string {
@@ -391,9 +417,9 @@ function Field({
 }) {
   return (
     <label className={`flex flex-col gap-1 ${className}`}>
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-xs text-slate-500">{label}</span>
       {children}
-      {hint && <span className="text-xs text-slate-500">{hint}</span>}
+      {hint && <span className="text-[11px] text-slate-400">{hint}</span>}
     </label>
   );
 }
@@ -412,18 +438,15 @@ function Checkbox({
   disabled?: boolean;
 }) {
   return (
-    <label className={`flex items-start gap-2 ${disabled ? "opacity-50" : "cursor-pointer"}`}>
+    <label title={hint} className={`flex items-center gap-2 ${disabled ? "opacity-50" : "cursor-pointer"}`}>
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={(e) => onChange(e.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        className="size-4 rounded border-slate-300 accent-indigo-600"
       />
-      <span className="text-sm text-slate-700">
-        {label}
-        {hint && <span className="block text-xs text-slate-500">{hint}</span>}
-      </span>
+      <span className="text-xs text-slate-500">{label}</span>
     </label>
   );
 }

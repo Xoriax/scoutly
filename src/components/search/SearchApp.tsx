@@ -6,11 +6,11 @@ import { FILTER_LABELS, hasAnyFilter, type SearchFilters } from "@/domain/filter
 import type { SearchResponse } from "@/lib/api-types";
 import { formatInteger } from "@/lib/format";
 import { parseSearchParams, toSearchParams, type SearchOptions } from "@/lib/search-params";
-import { CompanyMap, type MapPoint } from "./CompanyMap";
+import { CompanyMap, type MapPoint } from "@/components/company/CompanyMap";
 import { ExportButton } from "./ExportButton";
 import { Pagination } from "./Pagination";
 import { ResultsTable } from "./ResultsTable";
-import { SaveSearchButton } from "./SaveSearchButton";
+import { SaveSearchButton } from "@/components/saved-searches/SaveSearchButton";
 import { SearchForm } from "./SearchForm";
 
 type Outcome = { query: string } & ({ data: SearchResponse } | { error: string });
@@ -71,6 +71,14 @@ export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
         initialFilters={filters}
         initialOptions={options}
         onSubmit={(f, o) => router.push(hrefFor(f, 1, o))}
+        actions={
+          filters && current && "data" in current ? (
+            <SaveSearchButton
+              query={toSearchParams(filters, 1, options).toString()}
+              suggestion={suggestName(filters)}
+            />
+          ) : null
+        }
       />
 
       {!parsed.ok && <Alert tone="error">{parsed.error}</Alert>}
@@ -90,7 +98,6 @@ export function SearchApp({ exportMaxRows }: { exportMaxRows: number }) {
           result={current.data}
           searchQuery={query}
           criteriaQuery={toSearchParams(filters, 1, options).toString()}
-          nameSuggestion={suggestName(filters)}
           exportMaxRows={exportMaxRows}
           hrefFor={(p) => hrefFor(filters, p, options)}
           onNavigate={(p) => router.push(hrefFor(filters, p, options))}
@@ -104,7 +111,6 @@ function Results({
   result,
   searchQuery,
   criteriaQuery,
-  nameSuggestion,
   exportMaxRows,
   hrefFor,
   onNavigate,
@@ -114,7 +120,6 @@ function Results({
   searchQuery: string;
   /** Critères seuls, sans la page (export, sauvegarde) */
   criteriaQuery: string;
-  nameSuggestion: string;
   exportMaxRows: number;
   hrefFor: (page: number) => string;
   onNavigate: (page: number) => void;
@@ -195,13 +200,13 @@ function Results({
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
-          <p className="text-sm text-slate-700">
+          <p className="text-sm text-slate-500">
             {total === 0 ? (
               "Aucune entreprise trouvée."
             ) : (
               <>
                 {totalIsApproximate ? "Jusqu'à " : ""}
-                <strong className="text-slate-900">{formatInteger(total)}</strong> entreprise
+                <strong className="text-base font-semibold text-slate-900">{formatInteger(total)}</strong> entreprise
                 {total > 1 ? "s" : ""} trouvée{total > 1 ? "s" : ""}
                 {truncated && (
                   <span className="text-slate-500">
@@ -213,13 +218,12 @@ function Results({
               </>
             )}
           </p>
-          <SaveSearchButton query={criteriaQuery} suggestion={nameSuggestion} />
         </div>
         {total > 0 && <ExportButton query={criteriaQuery} maxRows={exportMaxRows} />}
       </div>
 
       {companies.length > 0 && (
-        <div role="tablist" aria-label="Affichage" className="flex gap-1 self-start rounded-lg bg-slate-200/70 p-1 text-sm">
+        <div role="tablist" aria-label="Affichage" className="flex gap-1 self-start rounded-lg bg-slate-100 p-1 text-xs">
           {(["tableau", "carte"] as const).map((v) => (
             <button
               key={v}
@@ -228,7 +232,7 @@ function Results({
               aria-selected={view === v}
               onClick={() => changeView(v)}
               className={`rounded-md px-3 py-1.5 font-medium ${
-                view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"
+                view === v ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
               }`}
             >
               {v === "tableau" ? "Tableau" : "Carte"}

@@ -5,6 +5,92 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Palette de la maquette Scoutly (thème clair) : gris-vert doux, accent indigo */
+@theme {
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f0f4f4;
+  --color-slate-200: #e7ecee;
+  --color-slate-300: #d3dce0;
+  --color-slate-400: #9aa8b0;
+  --color-slate-500: #687780;
+  --color-slate-600: #53626b;
+  --color-slate-700: #3b4a53;
+  --color-slate-900: #202d35;
+
+  --color-indigo-50: #eeedff;
+  --color-indigo-100: #e1dfff;
+  --color-indigo-200: #c9c6fb;
+  --color-indigo-500: #6258ec;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+
+  /* À contacter */
+  --color-sky-50: #eaf2fa;
+  --color-sky-200: #c5daee;
+  --color-sky-800: #366c9f;
+  /* Contacté */
+  --color-amber-50: #fcf3e6;
+  --color-amber-200: #f0dcb9;
+  --color-amber-800: #986425;
+  /* Erreurs */
+  --color-red-700: #b24c47;
+
+  --radius-xl: 13px;
+}
+
 :root {
-  color-scheme: light;
+  color-scheme: light dark;
+}
+
+/* Thème sombre de la maquette : mêmes variables, valeurs inversées */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-white: #19232c;
+    --color-slate-50: #101722;
+    --color-slate-100: #22323a;
+    --color-slate-200: #30404b;
+    --color-slate-300: #3f515d;
+    --color-slate-400: #7f919b;
+    --color-slate-500: #a5b5be;
+    --color-slate-600: #bccad1;
+    --color-slate-700: #d3dde2;
+    --color-slate-900: #edf2f3;
+
+    --color-indigo-50: #2a2849;
+    --color-indigo-100: #35325e;
+    --color-indigo-200: #4b4784;
+    --color-indigo-500: #a09dff;
+    --color-indigo-600: #b4b2ff;
+    --color-indigo-700: #c8c6ff;
+
+    --color-sky-50: #1f3345;
+    --color-sky-200: #36536d;
+    --color-sky-800: #8dbce9;
+    --color-amber-50: #3e3020;
+    --color-amber-200: #5d4630;
+    --color-amber-800: #edbb74;
+    --color-emerald-50: #1f3a31;
+    --color-emerald-200: #2f5a49;
+    --color-emerald-700: #87d8bc;
+    --color-red-50: #3b2224;
+    --color-red-200: #5e3537;
+    --color-red-700: #f0a29b;
+    --color-red-800: #f0a29b;
+  }
+}
+
+/* Écrans tactiles : cibles de 44 px, et 16 px dans les champs (évite le zoom automatique d'iOS) */
+@media (pointer: coarse) {
+  button,
+  select,
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  nav a {
+    min-height: 44px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }

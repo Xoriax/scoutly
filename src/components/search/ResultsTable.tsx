@@ -1,13 +1,14 @@
 "use client";
 
+import { ArrowRight, Columns3 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { Company } from "@/domain/company";
 import type { ProspectStatut } from "@/domain/prospect";
 import { TRANCHE_ORDER } from "@/data/referentiels/labels";
 import { formatDate, formatEuros } from "@/lib/format";
-import { EtatBadge, formatSiren, shortEffectif } from "./company-format";
-import { ProspectStatusSelect } from "./ProspectStatusSelect";
+import { EtatBadge, formatSiren, shortEffectif } from "@/components/company/company-format";
+import { ProspectStatusSelect } from "@/components/prospects/ProspectStatusSelect";
 
 type SortValue = string | number | null;
 
@@ -26,6 +27,8 @@ interface Column {
 interface RenderContext {
   retour: string;
   suivis: Record<string, ProspectStatut>;
+  /** Paramètres de la recherche en cours (« recherche d'origine » des prospects suivis) */
+  searchQuery: string;
 }
 
 const trancheRank = (code: string | null) =>
@@ -144,13 +147,14 @@ const COLUMNS: Column[] = [
     id: "suivi",
     label: "Suivi",
     defaultVisible: true,
-    render: (c, { suivis }) => (
+    render: (c, { suivis, searchQuery }) => (
       <ProspectStatusSelect
         key={`${c.siren}-${suivis[c.siren] ?? ""}`}
         siren={c.siren}
         nom={c.nom}
         ville={c.ville}
         statut={suivis[c.siren] ?? null}
+        origine={searchQuery}
       />
     ),
   },
@@ -220,8 +224,8 @@ export function ResultsTable({ companies, searchQuery, suivis }: Props) {
         <ColumnPicker visible={visible} onToggle={toggleColumn} />
       </div>
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+        <table className="min-w-full divide-y divide-slate-200 text-[13px]">
+          <thead className="bg-slate-100 text-left text-[10px] font-medium text-slate-500">
             <tr>
               {columns.map((col) => (
                 <th
@@ -230,13 +234,13 @@ export function ResultsTable({ companies, searchQuery, suivis }: Props) {
                   aria-sort={
                     sort?.id === col.id ? (sort.dir === 1 ? "ascending" : "descending") : undefined
                   }
-                  className={`px-4 py-3 ${col.id === "ca" ? "text-right" : ""}`}
+                  className={`px-4 py-2.5 ${col.id === "ca" ? "text-right" : ""}`}
                 >
                   {col.sort ? (
                     <button
                       type="button"
                       onClick={() => toggleSort(col.id)}
-                      className="inline-flex items-center gap-1 uppercase hover:text-indigo-700"
+                      className="inline-flex items-center gap-1 hover:text-indigo-700"
                     >
                       {col.label}
                       <span aria-hidden className="text-slate-400">
@@ -252,16 +256,21 @@ export function ResultsTable({ companies, searchQuery, suivis }: Props) {
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {rows.map((c) => (
-              <tr key={c.siren} className="align-top hover:bg-indigo-50/40">
+              <tr key={c.siren} className="align-top hover:bg-slate-50">
                 {columns.map((col) => (
                   <td key={col.id} className={`px-4 py-3 ${col.className ?? ""}`}>
-                    {col.render(c, { retour, suivis })}
+                    {col.render(c, { retour, suivis, searchQuery })}
                   </td>
                 ))}
               </tr>
             ))}
           </tbody>
         </table>
+        <p className="flex items-start gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
+          <ArrowRight aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+          Suivre une entreprise l&apos;ajoute à « Mes prospects », avec sa recherche d&apos;origine. Vous pourrez ensuite
+          renseigner le contact et programmer une relance.
+        </p>
       </div>
     </div>
   );
@@ -281,8 +290,8 @@ function compare(a: SortValue, b: SortValue, dir: 1 | -1): number {
 function ColumnPicker({ visible, onToggle }: { visible: string[]; onToggle: (id: string) => void }) {
   return (
     <details className="relative">
-      <summary className="cursor-pointer list-none rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
-        Colonnes ▾
+      <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">
+        <Columns3 aria-hidden className="size-4" /> Colonnes
       </summary>
       <fieldset className="absolute right-0 z-20 mt-1 w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-lg">
         <legend className="sr-only">Colonnes affichées</legend>

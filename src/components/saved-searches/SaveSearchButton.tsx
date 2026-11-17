@@ -1,5 +1,6 @@
 "use client";
 
+import { Bookmark } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
@@ -35,16 +36,16 @@ export function SaveSearchButton({ query, suggestion }: { query: string; suggest
       <button
         type="button"
         onClick={() => setStatus({ state: "open" })}
-        className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
       >
-        ☆ Enregistrer la recherche
+        <Bookmark aria-hidden className="size-4" /> Sauvegarder la recherche
       </button>
     );
   }
 
   if (status.state === "saved") {
     return (
-      <p role="status" className="text-sm text-emerald-700">
+      <p role="status" className="text-xs text-indigo-700">
         Recherche enregistrée.{" "}
         <Link href="/recherches" className="font-medium underline">
           Voir mes recherches

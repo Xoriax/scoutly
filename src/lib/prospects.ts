@@ -1,6 +1,6 @@
 import "server-only";
 import type { DatabaseSync } from "node:sqlite";
-import type { Prospect, ProspectStatut } from "@/domain/prospect";
+import type { Prospect, ProspectDetails, ProspectStatut } from "@/domain/prospect";
 import { getDb } from "./db";
 
 interface Row {
@@ -9,6 +9,15 @@ interface Row {
   ville: string | null;
   statut: ProspectStatut;
   notes: string;
+  contact: string;
+  email: string;
+  montant: number | null;
+  prochaine_action: string;
+  etape: string;
+  secteur: string;
+  effectif: string;
+  origine: string;
+  created_at: string;
   updated_at: string;
 }
 
@@ -18,6 +27,15 @@ const toProspect = (row: Row): Prospect => ({
   ville: row.ville,
   statut: row.statut,
   notes: row.notes,
+  contact: row.contact,
+  email: row.email,
+  montant: row.montant,
+  prochaineAction: row.prochaine_action,
+  etape: row.etape,
+  secteur: row.secteur,
+  effectif: row.effectif,
+  origine: row.origine,
+  createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
 
@@ -52,19 +70,60 @@ export function suivisSet(db: DatabaseSync = getDb()): Set<string> {
   return new Set(rows.map((r) => r.siren));
 }
 
+/**
+ * Crée ou met à jour le suivi. Les champs de `ProspectDetails` non fournis conservent leur
+ * valeur actuelle : un simple changement de statut n'efface ni le contact ni le montant.
+ */
 export function saveProspect(
-  input: { siren: string; nom: string; ville: string | null; statut: ProspectStatut; notes: string },
+  input: { siren: string; nom: string; ville: string | null; statut: ProspectStatut; notes: string } & ProspectDetails,
   db: DatabaseSync = getDb(),
 ): Prospect {
+  const current = getProspect(input.siren, db);
   const updatedAt = new Date().toISOString();
+  const prospect: Prospect = {
+    siren: input.siren,
+    nom: input.nom,
+    ville: input.ville,
+    statut: input.statut,
+    notes: input.notes,
+    contact: input.contact ?? current?.contact ?? "",
+    email: input.email ?? current?.email ?? "",
+    montant: input.montant !== undefined ? input.montant : (current?.montant ?? null),
+    prochaineAction: input.prochaineAction ?? current?.prochaineAction ?? "",
+    etape: input.etape ?? current?.etape ?? "",
+    secteur: input.secteur ?? current?.secteur ?? "",
+    effectif: input.effectif ?? current?.effectif ?? "",
+    // L'origine est celle du premier suivi : un changement ultérieur ne l'écrase pas
+    origine: current?.origine || input.origine || "",
+    createdAt: current?.createdAt ?? updatedAt,
+    updatedAt,
+  };
   db.prepare(
-    `INSERT INTO prospects (siren, nom, ville, statut, notes, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?)
+    `INSERT INTO prospects
+       (siren, nom, ville, statut, notes, contact, email, montant, prochaine_action,
+        etape, secteur, effectif, origine, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT (siren) DO UPDATE SET
        nom = excluded.nom, ville = excluded.ville, statut = excluded.statut,
-       notes = excluded.notes, updated_at = excluded.updated_at`,
-  ).run(input.siren, input.nom, input.ville, input.statut, input.notes, updatedAt);
-  return { ...input, updatedAt };
+       notes = excluded.notes, contact = excluded.contact, email = excluded.email,
+       montant = excluded.montant, prochaine_action = excluded.prochaine_action,
+       etape = excluded.etape, secteur = excluded.secteur, effectif = excluded.effectif,
+       origine = excluded.origine, updated_at = excluded.updated_at`,
+  ).run(
+    prospect.siren, prospect.nom, prospect.ville, prospect.statut, prospect.notes,
+    prospect.contact, prospect.email, prospect.montant, prospect.prochaineAction,
+    prospect.etape, prospect.secteur, prospect.effectif, prospect.origine,
+    prospect.createdAt, updatedAt,
+  );
+  return prospect;
+}
+
+/** Identifiant suivant pour un prospect saisi à la main : M1, M2… */
+export function nextManualKey(db: DatabaseSync = getDb()): string {
+  const row = db
+    .prepare("SELECT max(CAST(substr(siren, 2) AS INTEGER)) AS n FROM prospects WHERE siren LIKE 'M%'")
+    .get() as { n: number | null };
+  return `M${(row.n ?? 0) + 1}`;
 }
 
 export function deleteProspect(siren: string, db: DatabaseSync = getDb()): void {

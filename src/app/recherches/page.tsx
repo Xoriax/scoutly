@@ -1,8 +1,10 @@
+import { Link2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
-import { SavedSearchCard } from "@/components/SavedSearchCard";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { SavedSearchCard } from "@/components/saved-searches/SavedSearchCard";
 import { describeFilters } from "@/lib/export/criteria";
 import { isMailConfigured } from "@/lib/mailer";
 import { listNouvelles, listSavedSearches } from "@/lib/saved-searches";
@@ -12,14 +14,11 @@ export const metadata: Metadata = { title: "Recherches sauvegardées" };
 
 export default function SavedSearchesPage() {
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Recherches sauvegardées</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Relancez vos recherches en un clic et soyez prévenu des nouvelles entreprises qui y
-          apparaissent.
-        </p>
-      </header>
+    <main className="w-full px-4 py-8 sm:px-6 lg:px-8">
+      <PageHeader
+        title="Recherches sauvegardées & alertes."
+        description="Retrouvez vos critères et détectez les entreprises encore jamais vues."
+      />
       <Suspense fallback={<p className="text-sm text-slate-500">Chargement…</p>}>
         <SavedSearchesList />
       </Suspense>
@@ -60,7 +59,7 @@ async function SavedSearchesList() {
   return (
     <div className="flex flex-col gap-4">
       {(!scheduled || !mail) && (
-        <div role="status" className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+        <div role="status" className="rounded-xl bg-slate-100 px-4 py-3 text-xs text-slate-600">
           <strong>Alertes automatiques :</strong>{" "}
           {!scheduled && "la vérification planifiée n'est pas configurée (ALERT_CRON_TOKEN). "}
           {!mail && "l'envoi d'emails n'est pas configuré (SMTP_HOST, SMTP_FROM). "}
@@ -71,6 +70,10 @@ async function SavedSearchesList() {
       {cards.map(({ search, criteres, nouvelles }) => (
         <SavedSearchCard key={search.id} search={search} criteres={criteres} nouvelles={nouvelles} />
       ))}
+      <p className="flex items-center gap-2.5 rounded-xl bg-indigo-50 px-4 py-3 text-xs text-indigo-700">
+        <Link2 aria-hidden className="size-4 shrink-0" />
+        Les nouveautés peuvent être ajoutées à vos prospects ; leur recherche d&apos;origine est conservée.
+      </p>
     </div>
   );
 }

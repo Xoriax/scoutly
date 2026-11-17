@@ -27,10 +27,12 @@ export function EtatBadge({ etat }: { etat: Company["etatAdministratif"] }) {
 }
 
 export const STATUT_STYLES: Record<ProspectStatut, string> = {
+  a_qualifier: "bg-slate-100 text-slate-600 ring-slate-200",
   a_contacter: "bg-sky-50 text-sky-800 ring-sky-200",
   contacte: "bg-amber-50 text-amber-800 ring-amber-200",
-  interesse: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  pas_interesse: "bg-slate-100 text-slate-600 ring-slate-200",
+  en_discussion: "bg-indigo-50 text-indigo-700 ring-indigo-200",
+  interesse: "bg-indigo-100 text-indigo-700 ring-indigo-200",
+  pas_interesse: "bg-slate-100 text-slate-500 ring-slate-200",
 };
 
 export function StatutBadge({ statut }: { statut: ProspectStatut }) {

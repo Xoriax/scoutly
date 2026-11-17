@@ -30,8 +30,23 @@
 - **Recherches sauvegardées** : relancer une recherche en un clic.
 - **Alertes « nouvelles entreprises »** : vérification planifiée des recherches surveillées et
   email récapitulatif des entreprises apparues depuis la vérification précédente.
-- **Suivi des prospects** : statut (à contacter, contacté, intéressé, pas intéressé) et notes,
-  modifiables depuis les résultats ou la fiche ; option pour masquer les entreprises déjà suivies.
+- **Suivi des prospects** : 6 statuts (à qualifier, à contacter, contacté, en discussion, intéressé,
+  pas intéressé), contact, email, montant et étape de l'opportunité, prochaine action et notes,
+  modifiables depuis les résultats ou la fiche ; **pipeline** ou **liste**, recherche et filtre par
+  statut ; option pour masquer les entreprises déjà suivies. Un prospect garde sa **recherche
+  d'origine** et peut aussi être saisi à la main (identifiant `M1`, `M2`…).
+- **Fiche prospect** (`/prospects/[siren]`) : historique (échanges, notes), mémoire commerciale,
+  contact, actions à faire, données publiques et suivi.
+- **Tableau de bord** : indicateurs, actions du jour (à cocher), derniers échanges et nouvelles
+  entreprises détectées par les alertes.
+- **Messagerie** : échanges avec les prospects, analyse, brouillon de réponse modifiable et marquage
+  « traité ». **Simulation** : aucune boîte mail n'est connectée, les échanges sont saisis à la main
+  et rien n'est envoyé.
+- **Séquences** : parcours de relance « Premier contact » avec ses règles (arrêt à la réponse,
+  absences, mode d'envoi). **Simulation** : les réglages sont mémorisés, aucun envoi automatique.
+- **Thème clair et sombre** (suit le réglage du système), interface adaptée au mobile.
+- **Données de démonstration** : bouton du tableau de bord (portefeuille vide) qui charge les
+  entreprises, échanges et actions fictifs de la maquette ; retirables sans toucher aux vraies données.
 - **Protection de l'accès** par identifiant et mot de passe (optionnelle).
 
 ## Stack
@@ -135,7 +150,9 @@ src/
 │  ├─ localisation.ts         Autocomplétion des villes (geo.api.gouv.fr)
 │  ├─ search-params.ts        URL ⇄ SearchFilters (validation partagée client/serveur)
 │  ├─ db.ts                   Base SQLite et migrations
-│  ├─ prospects.ts            Suivi des prospects
+│  ├─ prospects.ts            Suivi des prospects (contact, montant, prochaine action)
+│  ├─ tasks.ts, messages.ts, notes.ts, sequence.ts, demo.ts   Actions, échanges, notes, réglages, démo
+│  ├─ dashboard.ts            Agrégats du tableau de bord
 │  ├─ saved-searches.ts       Recherches sauvegardées, entreprises déjà vues
 │  ├─ alerts.ts, mailer.ts    Vérification des nouveautés, emails
 │  └─ export/                 Colonnes, collecte paginée, génération XLSX et CSV
@@ -144,10 +161,21 @@ src/
 │  ├─ page.tsx                Page de recherche
 │  ├─ entreprises/[siren]/    Fiche détail d'une entreprise
 │  ├─ recherches/             Recherches sauvegardées et alertes
-│  ├─ prospects/              Suivi des prospects
-│  └─ api/                    search, companies, localisations, export, prospects,
-│                             saved-searches, alertes/run
-├─ components/                Formulaire, tableau, pagination, localisation, export, fiche
+│  ├─ prospects/              Suivi des prospects (pipeline / liste)
+│  ├─ prospects/[siren]/      Fiche prospect · prospects/nouveau : saisie manuelle
+│  ├─ tableau-de-bord/        Indicateurs, actions du jour, derniers échanges
+│  ├─ messagerie/, sequences/ Échanges et relances (simulation)
+│  └─ api/                    search, companies, localisations, export, prospects (+ notes),
+│                             saved-searches, alertes/run, taches, messages, sequence, demo
+├─ components/                Interface, un dossier par domaine
+│  ├─ layout/                 Barre latérale, fil d'Ariane, en-tête de page, parcours
+│  ├─ search/                 Formulaire, résultats, pagination, localisation, export
+│  ├─ company/                Fiche entreprise, carte, formats communs
+│  ├─ prospects/              Pipeline, liste, carte, fiche (historique, notes, actions), édition
+│  ├─ messaging/, sequences/  Boîte de réception, brouillon, étapes et règles de la séquence
+│  ├─ ui/                     Panneau, badge, avatar
+│  ├─ saved-searches/         Recherches sauvegardées et alertes
+│  └─ dashboard/              Indicateurs et listes du tableau de bord
 └─ proxy.ts                   Protection de l'accès (authentification HTTP Basic)
 tests/                        Tests Vitest (filtres, zones, mapper, export, HTTP, cache, accès,
                               base de données, alertes)

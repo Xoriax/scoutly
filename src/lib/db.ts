@@ -21,7 +21,7 @@ export function openDatabase(path: string): DatabaseSync {
 }
 
 /** Schéma versionné : chaque entrée s'applique une seule fois, dans l'ordre */
-const MIGRATIONS = [
+export const MIGRATIONS = [
   `CREATE TABLE prospects (
      siren      TEXT PRIMARY KEY,
      nom        TEXT NOT NULL,
@@ -52,9 +52,73 @@ const MIGRATIONS = [
      baseline      INTEGER NOT NULL DEFAULT 0,
      PRIMARY KEY (search_id, siren)
    );`,
+  // Fiche prospect enrichie : contact, opportunité et prochaine action (additif)
+  `ALTER TABLE prospects ADD COLUMN contact TEXT NOT NULL DEFAULT '';
+   ALTER TABLE prospects ADD COLUMN email TEXT NOT NULL DEFAULT '';
+   ALTER TABLE prospects ADD COLUMN montant INTEGER;
+   ALTER TABLE prospects ADD COLUMN prochaine_action TEXT NOT NULL DEFAULT '';`,
+  // Statuts « À qualifier » et « En discussion » (la contrainte CHECK impose de reconstruire la
+  // table), étape d'opportunité, origine, puis actions, échanges, notes et réglages
+  `CREATE TABLE prospects_new (
+     siren            TEXT PRIMARY KEY,
+     nom              TEXT NOT NULL,
+     ville            TEXT,
+     statut           TEXT NOT NULL CHECK (statut IN
+                        ('a_qualifier','a_contacter','contacte','en_discussion','interesse','pas_interesse')),
+     notes            TEXT NOT NULL DEFAULT '',
+     contact          TEXT NOT NULL DEFAULT '',
+     email            TEXT NOT NULL DEFAULT '',
+     montant          INTEGER,
+     prochaine_action TEXT NOT NULL DEFAULT '',
+     etape            TEXT NOT NULL DEFAULT '',
+     secteur          TEXT NOT NULL DEFAULT '',
+     effectif         TEXT NOT NULL DEFAULT '',
+     origine          TEXT NOT NULL DEFAULT '',
+     created_at       TEXT NOT NULL,
+     updated_at       TEXT NOT NULL
+   );
+   INSERT INTO prospects_new
+     (siren, nom, ville, statut, notes, contact, email, montant, prochaine_action, created_at, updated_at)
+     SELECT siren, nom, ville, statut, notes, contact, email, montant, prochaine_action, updated_at, updated_at
+     FROM prospects;
+   DROP TABLE prospects;
+   ALTER TABLE prospects_new RENAME TO prospects;
+   CREATE TABLE prospect_notes (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     siren      TEXT NOT NULL REFERENCES prospects(siren) ON DELETE CASCADE,
+     corps      TEXT NOT NULL,
+     created_at TEXT NOT NULL
+   );
+   CREATE TABLE taches (
+     id         INTEGER PRIMARY KEY AUTOINCREMENT,
+     siren      TEXT NOT NULL REFERENCES prospects(siren) ON DELETE CASCADE,
+     titre      TEXT NOT NULL,
+     raison     TEXT NOT NULL DEFAULT '',
+     etiquette  TEXT NOT NULL DEFAULT '',
+     echeance   TEXT NOT NULL DEFAULT '',
+     terminee   INTEGER NOT NULL DEFAULT 0,
+     created_at TEXT NOT NULL
+   );
+   CREATE TABLE messages (
+     id        INTEGER PRIMARY KEY AUTOINCREMENT,
+     siren     TEXT NOT NULL REFERENCES prospects(siren) ON DELETE CASCADE,
+     objet     TEXT NOT NULL,
+     corps     TEXT NOT NULL DEFAULT '',
+     recu_le   TEXT NOT NULL,
+     analyse   TEXT NOT NULL DEFAULT '',
+     citation  TEXT NOT NULL DEFAULT '',
+     brouillon TEXT NOT NULL DEFAULT '',
+     traite    INTEGER NOT NULL DEFAULT 0
+   );
+   CREATE TABLE reglages (
+     cle    TEXT PRIMARY KEY,
+     valeur TEXT NOT NULL
+   );`,
+  // Pastille d'un échange (« Devis demandé », « Rendez-vous confirmé »…)
+  `ALTER TABLE messages ADD COLUMN etiquette TEXT NOT NULL DEFAULT '';`,
 ];
 
-function migrate(db: DatabaseSync): void {
+export function migrate(db: DatabaseSync): void {
   const { user_version: version } = db.prepare("PRAGMA user_version").get() as {
     user_version: number;
   };
